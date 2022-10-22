@@ -41,24 +41,27 @@ class MainActivity : ComponentActivity() {
 
                     // MutableState
                     LaunchedEffect(resultState) {
-                        log += resultState.statusMessage +" : "+
+                        log += resultState.statusMessage +": "+
                                 resultState.errorMessage +
-                                ", success=${resultState.isSuccess}"
+                                ", success=${resultState.isSuccess}" +
+                                ", err = ${resultState.isError}"
                     }
 
                     // MutableSharedFlow
                     LaunchedEffect(resultSharedFlow.value) {
-                        log2 += resultSharedFlow.value.statusMessage + " : "+
+                        log2 += resultSharedFlow.value.statusMessage + ": "+
                                 resultSharedFlow.value.errorMessage +
-                                ", success=${resultSharedFlow.value.isSuccess}"
+                                ", success=${resultSharedFlow.value.isSuccess}" +
+                                ", err = ${resultSharedFlow.value.isError}"
                     }
 
                     // Flow
                     LaunchedEffect(true) {
                         viewModel.loginFlow.collectLatest {
-                            log3 += it.statusMessage +" : "+
+                            log3 += it.statusMessage +": "+
                                     it.errorMessage +
-                                    ", success=${it.isSuccess}"
+                                    ", success=${it.isSuccess}" +
+                                    ", err = ${it.isError}"
                         }
                     }
 

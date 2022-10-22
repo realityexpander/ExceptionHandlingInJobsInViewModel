@@ -7,9 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
-import kotlinx.coroutines.android.awaitFrame
 import kotlinx.coroutines.flow.*
-import java.io.IOException
 
 data class State(
     var isLoading: Boolean = false,
@@ -58,10 +56,10 @@ class MainViewModel() : ViewModel() {
             println("Login called - ${Thread.currentThread().name}")
             loginState = loginState.copy(statusMessage = "Login called", isLoading = true)
             loginSharedFlow.emit(loginState)
-            yield()
+            yield() // allows the `emit` to update the UI
 
 //            val job = launch(Dispatchers.IO) {
-            val job = async(Dispatchers.IO) {
+            val loginJob = async(Dispatchers.IO) {
 
 //                throw IOException("parent coroutine IOException")
 //                throw CancellationException("parent coroutine CancellationException")
@@ -78,30 +76,36 @@ class MainViewModel() : ViewModel() {
 
                 isSuccessLogin
             }
+            yield()  // Allows the `loginJob` coroutine a chance to start, especially if its cancelled right away with `loginJob.cancel()`
 
-            yield()  // give the job coroutine a chance to start, ie: for `cancel()`
 //            delay(50)
 //            job.join()              // suspends until job completes
 //            job.cancelAndJoin()   // cancels job and suspends until job completes
-//            job.cancel()          // cancels job but does not suspend
+            loginJob.cancel()          // cancels job but does not suspend
 
-            if(!job.isCancelled) job.await()
+            if(!loginJob.isCancelled) {
+                println("Login job is not cancelled, awaiting `job` result...")
+                loginJob.await()
+            }
+
+            // Allows this `viewModelScope.launch` block to run to the end, in case of `loginJob.cancel()`
             yield()
-            println("login job: isCancelled=${job.isCancelled}, " +
-                    "value=${if(job.isCompleted && !job.isCancelled) job.getCompleted() else "not completed or cancelled"}, " +
-                    "isActive=${job.isActive}, " +
-                    "isCompleted=${job.isCompleted}, "+
-                    "completionException=${if(job.isCancelled) job.getCompletionExceptionOrNull()?.javaClass?.name else ""}"
+
+            println("login job: isCancelled=${loginJob.isCancelled}, " +
+                    "value=${if(loginJob.isCompleted && !loginJob.isCancelled) loginJob.getCompleted() else "not completed or cancelled"}, " +
+                    "isActive=${loginJob.isActive}, " +
+                    "isCompleted=${loginJob.isCompleted}, "+
+                    "completionException=${if(loginJob.isCancelled) loginJob.getCompletionExceptionOrNull()?.javaClass?.name else ""}"
             )
 
-            if(job.isCancelled) {
+            if(loginJob.isCancelled) {
                 println("Login cancelled - ${Thread.currentThread().name}")
                 loginState = loginState.copy(
                     statusMessage = "Login cancelled",
                     isLoading = false,
                     isError = true,
                     isSuccess = false,
-                    errorMessage = job.getCompletionExceptionOrNull()
+                    errorMessage = loginJob.getCompletionExceptionOrNull()
                         ?.javaClass
                         ?.name
                         ?.replaceBeforeLast(".", "")
@@ -111,24 +115,24 @@ class MainViewModel() : ViewModel() {
                 loginSharedFlow.emit(loginState)
             }
 
-            // note: without job.join() or job.await() this is printed before the login is finished
+            // note: without `loginJob.join()` or `loginJob.await()` this is printed before the login is finished
             println("Login finished - ${Thread.currentThread().name}")
             loginState = loginState.copy(statusMessage = "Login finished", isLoading = false)
             loginSharedFlow.emit(loginState)
             yield()
         }
 
-        // Emit parallel
-        viewModelScope.launch {
-            yield()
-            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 1"))
-
-            yield()
-            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 2"))
-
-            yield()
-            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 3"))
-        }
+//        // Emit parallel
+//        viewModelScope.launch {
+//            yield()
+//            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 1"))
+//
+//            yield()
+//            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 2"))
+//
+//            yield()
+//            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 3"))
+//        }
     }
 
     private suspend fun repositoryLogin(): Boolean {
