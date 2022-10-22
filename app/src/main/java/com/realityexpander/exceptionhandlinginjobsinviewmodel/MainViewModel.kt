@@ -20,12 +20,15 @@ data class State(
 )
 class MainViewModel() : ViewModel() {
 
+    // Compose
     var loginState by mutableStateOf(State(), neverEqualPolicy())
         private set
 
+    // Kotlin Coroutine
     var loginSharedFlow = MutableSharedFlow<State>(replay = 1)
         private set
 
+    // Kotlin Coroutine Flow
     val loginFlow = flow {
         loginSharedFlow.collect() {
             emit(it)
@@ -49,18 +52,6 @@ class MainViewModel() : ViewModel() {
             //exception.printStackTrace()
         }
 
-        // Emit parallel
-        viewModelScope.launch {
-            yield()
-            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 1"))
-
-            yield()
-            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 2"))
-
-            yield()
-            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 3"))
-        }
-
         viewModelScope.launch(exceptionHandler) {
 //        viewModelScope.launch() {
 
@@ -71,6 +62,10 @@ class MainViewModel() : ViewModel() {
 
 //            val job = launch(Dispatchers.IO) {
             val job = async(Dispatchers.IO) {
+
+//                throw IOException("parent coroutine IOException")
+//                throw CancellationException("parent coroutine CancellationException")
+
                 val isSuccessLogin = repositoryLogin()
 
 //                throw IOException("parent coroutine IOException")
@@ -121,6 +116,18 @@ class MainViewModel() : ViewModel() {
             loginState = loginState.copy(statusMessage = "Login finished", isLoading = false)
             loginSharedFlow.emit(loginState)
             yield()
+        }
+
+        // Emit parallel
+        viewModelScope.launch {
+            yield()
+            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 1"))
+
+            yield()
+            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 2"))
+
+            yield()
+            loginSharedFlow.emit(loginState.copy(statusMessage = "parallel emit 3"))
         }
     }
 
