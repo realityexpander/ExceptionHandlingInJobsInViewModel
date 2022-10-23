@@ -157,7 +157,7 @@ class MainViewModel() : ViewModel() {
 //            loginJob.cancelAndJoin()        // cancels loginJob and suspends until loginJob completes
 //            loginJob.cancel()          // cancels loginJob but does not suspend
 
-            // Without await() or join(), the loginJob will run to completion, and the parent coroutine wont wait for its result.
+            // Without await() or join(), the loginJob will run to completion, and the parent coroutine won't wait for its result.
             if(!loginJob.isCancelled) {
                 println("loginJob is not cancelled, awaiting `job` result...")
                 loginJob.await()
