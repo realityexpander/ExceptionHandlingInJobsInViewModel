@@ -23,11 +23,11 @@ class MainViewModel() : ViewModel() {
     var loginState by mutableStateOf(State(), neverEqualPolicy())
         private set
 
-    // Kotlin Coroutines Shared Flow - updates not sent when app is in background
+    // Kotlin Coroutines SharedFlow - updates not sent when app is in background
     var loginSharedFlow = MutableSharedFlow<State>(replay = 1)
         private set
 
-    // Kotlin Coroutines State Flow - updates not sent when app is in background
+    // Kotlin Coroutines StateFlow - updates not sent when app is in background
     private var _loginStateFlow = MutableStateFlow<State>(State())
     var loginStateFlow: StateFlow<State> = _loginStateFlow.asStateFlow()
 

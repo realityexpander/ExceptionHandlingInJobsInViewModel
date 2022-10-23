@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
                         viewModel.login()
                     }
 
-                    // MutableState
+                    // MutableState - Compose
                     LaunchedEffect(resultState) {
                         logMutableState += resultState.statusMessage +": "+
                                 resultState.errorMessage +
@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
                                 ", err=${resultState.isError}"
                     }
 
-                    // MutableSharedFlow
+                    // MutableSharedFlow - Kotlin
                     LaunchedEffect(resultSharedFlow.value) {
                         logSharedFlow += resultSharedFlow.value.statusMessage + ": "+
                                 resultSharedFlow.value.errorMessage +
@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity() {
                                 ", err=${resultSharedFlow.value.isError}"
                     }
 
-                    // MutableStateFlow
+                    // MutableStateFlow - Kotlin
                     LaunchedEffect(resultStateFlow.value) {
                         logStateFlow += resultStateFlow.value.statusMessage + ": "+
                                 resultStateFlow.value.errorMessage +
@@ -72,7 +72,7 @@ class MainActivity : ComponentActivity() {
                                 ", err=${resultStateFlow.value.isError}"
                     }
 
-                    // Flow
+                    // Flow - Kotlin
                     LaunchedEffect(true) {
                         viewModel.loginFlow.collectLatest {
                             logFlow += it.statusMessage +": "+
@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // Channel
+                    // Channel - Kotlin
                     LaunchedEffect(true) {
                         viewModel.loginChannel.receiveAsFlow().collectLatest {
                             logChannel += it.statusMessage +": "+
