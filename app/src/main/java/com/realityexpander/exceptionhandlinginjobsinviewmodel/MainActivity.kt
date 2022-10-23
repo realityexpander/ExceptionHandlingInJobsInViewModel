@@ -24,9 +24,9 @@ class MainActivity : ComponentActivity() {
             ExceptionHandlingInJobsInViewModelTheme {
 
                 val viewModel = MainViewModel()
-                val log = remember { mutableStateListOf<String>() }
-                val log2 = remember { mutableStateListOf<String>() }
-                val log3 = remember { mutableStateListOf<String>() }
+                val logMutableState = remember { mutableStateListOf<String>() }
+                val logSharedFlow = remember { mutableStateListOf<String>() }
+                val logFlow = remember { mutableStateListOf<String>() }
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -41,27 +41,27 @@ class MainActivity : ComponentActivity() {
 
                     // MutableState
                     LaunchedEffect(resultState) {
-                        log += resultState.statusMessage +": "+
+                        logMutableState += resultState.statusMessage +": "+
                                 resultState.errorMessage +
-                                ", success=${resultState.isSuccess}" +
-                                ", err = ${resultState.isError}"
+                                ", logIn=${resultState.isLoggedIn}" +
+                                ", err=${resultState.isError}"
                     }
 
                     // MutableSharedFlow
                     LaunchedEffect(resultSharedFlow.value) {
-                        log2 += resultSharedFlow.value.statusMessage + ": "+
+                        logSharedFlow += resultSharedFlow.value.statusMessage + ": "+
                                 resultSharedFlow.value.errorMessage +
-                                ", success=${resultSharedFlow.value.isSuccess}" +
-                                ", err = ${resultSharedFlow.value.isError}"
+                                ", logIn=${resultSharedFlow.value.isLoggedIn}" +
+                                ", err=${resultSharedFlow.value.isError}"
                     }
 
                     // Flow
                     LaunchedEffect(true) {
                         viewModel.loginFlow.collectLatest {
-                            log3 += it.statusMessage +": "+
+                            logFlow += it.statusMessage +": "+
                                     it.errorMessage +
-                                    ", success=${it.isSuccess}" +
-                                    ", err = ${it.isError}"
+                                    ", logIn=${it.isLoggedIn}" +
+                                    ", err=${it.isError}"
                         }
                     }
 
@@ -69,13 +69,13 @@ class MainActivity : ComponentActivity() {
                         ResultView(resultState.toString())
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        LogView("State:",  log)
+                        LogView("State:",  logMutableState)
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        LogView("SharedFlow:", log2)
+                        LogView("SharedFlow:", logSharedFlow)
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        LogView("Flow:", log3)
+                        LogView("Flow:", logFlow)
                     }
 
                 }
