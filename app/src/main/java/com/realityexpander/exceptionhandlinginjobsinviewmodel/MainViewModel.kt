@@ -15,11 +15,11 @@ data class State(
     var isLoggedIn: Boolean = false,
     var isError: Boolean = false,
     var errorMessage: String = "",
-    var statusMessage: String = ""
+    var statusMessage: String = "(initial state)"
 )
 class MainViewModel() : ViewModel() {
 
-    // Compose
+    // Compose State
     var loginState by mutableStateOf(State(), neverEqualPolicy())
         private set
 
@@ -51,30 +51,36 @@ class MainViewModel() : ViewModel() {
             //exception.printStackTrace()
         }
 
+        // • Try different launch scenarios (with and without exceptionHandler)
         viewModelScope.launch(exceptionHandler) {
 //        viewModelScope.launch() {
 
             println("Login called - ${Thread.currentThread().name}")
             loginState = loginState.copy(statusMessage = "Login called", isLoading = true)
             loginSharedFlow.emit(loginState)
-            yield() // allows the `emit` to update the UI
+            yield() // allows the `emit` time to update the UI
 
-//            val job = launch(Dispatchers.IO) {
+            // • Try different child coroutine call scenarios (launch, async, withContext)
+//            val loginJob = launch(Dispatchers.IO) {
             val loginJob = async(Dispatchers.IO) {
 
-                // Throw exception before job is started
+                // • Try different cancellation scenarios:
+
+                // • Throw exception before job is started:
 //                throw IOException("parent coroutine IOException")
 //                throw CancellationException("parent coroutine CancellationException")
 
-                // Run Job either way:
+                // • Try different loginJob repository call scenarios.
                 //   1) exceptions are handled by the parent coroutine:
-                //val isLoginSuccess = repositoryLoginThrowExceptionToParent()
-                //   2) exceptions are handled in the child function using try/catch:
-                val isLoginSuccess = repositoryLoginWithTryCatch()
+                val isLoginSuccess = repositoryLoginThrowExceptionToParent()
 
-                // Throw exception after job is started
-//                throw IOException("parent coroutine IOException")
-//                throw CancellationException("parent coroutine CancellationException")
+                //   2) exceptions are handled in the child function using try/catch:
+//                val isLoginSuccess = repositoryLoginWithTryCatch()
+
+                // • Throw exception after job is started:
+                throw IOException("parent coroutine IOException") // repositoryLoginXXX will keep running to completion(!) and parent will catch the exception.
+//                throw CancellationException("parent coroutine CancellationException")  // repositoryLoginXXX will keep running to completion(!) then parent coroutine will be cancelled.
+
 
                 println("Login Job completed - ${Thread.currentThread().name}")
                 loginState = loginState.copy(statusMessage = "Login Job completed", isLoading = false, isLoggedIn = isLoginSuccess)
@@ -83,16 +89,18 @@ class MainViewModel() : ViewModel() {
 
                 isLoginSuccess
             }
-            yield()  // Allows the `loginJob` coroutine a chance to start, especially if its cancelled right away with `loginJob.cancel()`
+            yield()  // Allows the `loginJob` coroutine a chance to staIrt, especially if its cancelled right away with `loginJob.cancel()`
 
+            // • Try different cancellation scenarios:
 //            delay(50)
-//            job.join()                 // suspends until job completes
-//            job.cancelAndJoin()        // cancels job and suspends until job completes
+//            loginJob.join()                 // suspends until job completes
+//            loginJob.cancelAndJoin()        // cancels job and suspends until job completes
 //            loginJob.cancel()          // cancels job but does not suspend
 
             if(!loginJob.isCancelled) {
-                println("Login job is not cancelled, awaiting `job` result...")
+                println("loginJob is not cancelled, awaiting `job` result...")
                 loginJob.await()
+                println("loginJob result: ${loginJob.getCompleted()}")
             }
 
             // Allows this `viewModelScope.launch` block to run to the end, in case of `loginJob.cancel()`
@@ -122,7 +130,7 @@ class MainViewModel() : ViewModel() {
                 loginSharedFlow.emit(loginState)
             }
 
-            // note: without `loginJob.join()` or `loginJob.await()` this is printed before the login is finished!
+            // note: without `loginJob.join()` or `loginJob.await()` this is printed before the login job is finished!
             println("Login finished - ${Thread.currentThread().name}")
             loginState = loginState.copy(statusMessage = "Login finished", isLoading = false)
             loginSharedFlow.emit(loginState)
@@ -146,6 +154,7 @@ class MainViewModel() : ViewModel() {
     // Returns true if login successful, or throws exception to be handled by parent coroutine.
     // Exceptions must be handled in the parent coroutine, otherwise the app will crash (unless handled with a exceptionHander).
     // CancellationExceptions simply stop the coroutine. They are not thrown to the parent coroutine.
+    // Note: Exception is bubbled up to the parent coroutine, and not handled in the child coroutine.
     private suspend fun repositoryLoginThrowExceptionToParent(): Boolean {
         println("Login Repository called - ${Thread.currentThread().name}")
         loginState = loginState.copy(statusMessage = "RepositoryLogin called")
@@ -157,13 +166,14 @@ class MainViewModel() : ViewModel() {
         loginSharedFlow.emit(loginState)
         delay(100)
 
+        // • Try throwing different exceptions
 //            throw IOException("Login failed - IOException")  // thrown to parent
 //            throw CancellationException("Login failed - cancelled") // NOT thrown to parent. It simply stops the coroutine.
 
         val isSuccessLogin = true
 
-        println("Login logged in - ${Thread.currentThread().name}")
-        loginState = loginState.copy(statusMessage = "RepositoryLogin Logged in", isLoggedIn = isSuccessLogin)
+        println("RepositoryLogin completed - ${Thread.currentThread().name}")
+        loginState = loginState.copy(statusMessage = "RepositoryLogin completed", isLoggedIn = isSuccessLogin)
         loginSharedFlow.emit(loginState)
         yield()
 
@@ -173,6 +183,7 @@ class MainViewModel() : ViewModel() {
     // Handles exceptions in the child function using try/catch.
     // Returns true if successful login, or catches exception and returns false.
     // Allows finer control over the exception handling, and allows the parent coroutine to continue.
+    // Note: Exception is not bubbled up to parent coroutine.
     private suspend fun repositoryLoginWithTryCatch(): Boolean {
         var isLoginSuccess = false
 
@@ -187,7 +198,8 @@ class MainViewModel() : ViewModel() {
             loginSharedFlow.emit(loginState)
             delay(100)
 
-                throw IOException("Login failed - IOException") // caught by try/catch. Parent coroutine continues.
+            // • Try throwing different exceptions
+//                throw IOException("Login failed - IOException") // caught by try/catch. Parent coroutine continues.
 //                throw CancellationException("Login failed - cancelled")  // caught by try/catch. Parent coroutine continues.
 
             isLoginSuccess = true

@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
                         ResultView(resultState.toString())
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        LogView("State:",  logMutableState)
+                        LogView("Compose State:",  logMutableState)
                         Spacer(modifier = Modifier.height(16.dp))
 
                         LogView("SharedFlow:", logSharedFlow)
@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ResultView(value: String) {
-    Text(text = "Result: $value")
+    Text(text = "Final Result: $value")
 }
 
 @Composable
