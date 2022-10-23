@@ -51,7 +51,7 @@ class MainViewModel() : ViewModel() {
             //exception.printStackTrace()
         }
 
-        // • Try different launch scenarios (with and without exceptionHandler)
+        // • Try different launch scenarios (with and without exceptionHandler) for Parent Coroutine
         viewModelScope.launch(exceptionHandler) {
 //        viewModelScope.launch() {
 
@@ -60,15 +60,16 @@ class MainViewModel() : ViewModel() {
             loginSharedFlow.emit(loginState)
             yield() // allows the `emit` time to update the UI
 
-            // • Try different child coroutine call scenarios (launch, async, withContext)
+            // • Try different child coroutine call scenarios (launch, async, withContext) for Child Coroutine
 //            val loginJob = launch(Dispatchers.IO) {
             val loginJob = async(Dispatchers.IO) {
 
-                // • Try different cancellation scenarios:
+                // •• Try different cancellation/call scenarios:
 
                 // • Throw exception before job is started:
-//                throw IOException("parent coroutine IOException")
-//                throw CancellationException("parent coroutine CancellationException")
+//                throw IOException("loginJob coroutine IOException") // Will not run `repositoryLogin`, and is caught by the exceptionHandler and cancels the Parent.
+//                throw CancellationException("loginJob coroutine CancellationException") // Will not run `repositoryLogin`, and Parent will run to completion(!).
+
 
                 // • Try different loginJob repository call scenarios.
                 //   1) exceptions are handled by the parent coroutine:
@@ -77,9 +78,10 @@ class MainViewModel() : ViewModel() {
                 //   2) exceptions are handled in the child function using try/catch:
 //                val isLoginSuccess = repositoryLoginWithTryCatch()
 
+
                 // • Throw exception after job is started:
-                throw IOException("parent coroutine IOException") // repositoryLoginXXX will keep running to completion(!) and parent will catch the exception.
-//                throw CancellationException("parent coroutine CancellationException")  // repositoryLoginXXX will keep running to completion(!) then parent coroutine will be cancelled.
+//                throw IOException("loginJob coroutine IOException") // repositoryLoginXXX will keep running to completion(!) and parent will catch the exception.
+//                throw CancellationException("loginJob coroutine CancellationException")  // repositoryLoginXXX will keep running to completion(!) then parent coroutine will be cancelled.
 
 
                 println("Login Job completed - ${Thread.currentThread().name}")
@@ -93,9 +95,9 @@ class MainViewModel() : ViewModel() {
 
             // • Try different cancellation scenarios:
 //            delay(50)
-//            loginJob.join()                 // suspends until job completes
-//            loginJob.cancelAndJoin()        // cancels job and suspends until job completes
-//            loginJob.cancel()          // cancels job but does not suspend
+//            loginJob.join()                 // suspends until loginJob completes
+//            loginJob.cancelAndJoin()        // cancels loginJob and suspends until loginJob completes
+//            loginJob.cancel()          // cancels loginJob but does not suspend
 
             if(!loginJob.isCancelled) {
                 println("loginJob is not cancelled, awaiting `job` result...")
@@ -126,8 +128,8 @@ class MainViewModel() : ViewModel() {
                         ?.replaceBeforeLast(".", "")
                         ?: "Unknown Error"
                 )
-                yield()
                 loginSharedFlow.emit(loginState)
+                yield()
             }
 
             // note: without `loginJob.join()` or `loginJob.await()` this is printed before the login job is finished!
