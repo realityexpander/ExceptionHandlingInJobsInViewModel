@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
                 val viewModel = MainViewModel()
                 val logMutableState = remember { mutableStateListOf<String>() }
                 val logSharedFlow = remember { mutableStateListOf<String>() }
+                val logStateFlow = remember { mutableStateListOf<String>() }
                 val logFlow = remember { mutableStateListOf<String>() }
                 val logChannel = remember { mutableStateListOf<String>() }
 
@@ -40,9 +41,10 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val resultState = viewModel.loginState
                     val resultSharedFlow = viewModel.loginSharedFlow.collectAsState(State())
+                    val resultStateFlow = viewModel.loginStateFlow.collectAsState()
 
                     LaunchedEffect(true) {
-//                        delay(2000) // Uncomment to allow app to start and user put app in background to see difference in behavior
+                        delay(2000) // Uncomment to allow app to start and user put app in background to see difference in behavior
                         viewModel.login()
                     }
 
@@ -60,6 +62,14 @@ class MainActivity : ComponentActivity() {
                                 resultSharedFlow.value.errorMessage +
                                 ", logIn=${resultSharedFlow.value.isLoggedIn}" +
                                 ", err=${resultSharedFlow.value.isError}"
+                    }
+
+                    // MutableStateFlow
+                    LaunchedEffect(resultStateFlow.value) {
+                        logStateFlow += resultStateFlow.value.statusMessage + ": "+
+                                resultStateFlow.value.errorMessage +
+                                ", logIn=${resultStateFlow.value.isLoggedIn}" +
+                                ", err=${resultStateFlow.value.isError}"
                     }
 
                     // Flow
@@ -96,10 +106,14 @@ class MainActivity : ComponentActivity() {
                         LogView("SharedFlow:", logSharedFlow)
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        LogView("StateFlow:", logStateFlow)
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         LogView("Flow:", logFlow)
                         Spacer(modifier = Modifier.height(16.dp))
 
                         LogView("Channel:", logChannel)
+
                     }
 
                 }

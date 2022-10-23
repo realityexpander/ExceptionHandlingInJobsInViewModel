@@ -9,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
-import java.io.IOException
 
 data class State(
     var isLoading: Boolean = false,
@@ -28,22 +27,60 @@ class MainViewModel() : ViewModel() {
     var loginSharedFlow = MutableSharedFlow<State>(replay = 1)
         private set
 
+    // Kotlin Coroutines State Flow - updates not sent when app is in background
+    private var _loginStateFlow = MutableStateFlow<State>(State())
+    var loginStateFlow: StateFlow<State> = _loginStateFlow.asStateFlow()
+
     // Kotlin Coroutine Flow - updates are sent when app is in background
     val loginFlow = flow {
         loginSharedFlow.collect() {
-            //delay(2500) // Uncomment to test when app in background the difference between `Compose State`/`SharedFlow` and `Flow`/`Channel`
             emit(it)
-            loginChannel.send(it)
+
+            // Uncomment to test when app in background the difference between `Compose State`/`SharedFlow` and `Flow`/`Channel`
+            // Also uncomment to see behavior difference with Channel and Flow for interrupted emissions.
+//            delay(1500)
         }
     }
 
     // Kotlin Channel - updates are sent when app is in background
     val loginChannel = Channel<State>()
 
+    // UTILS //////////////////////////////////////////////////////////////////
+
+    // Emit state on all methods in current coroutine
+    private suspend fun emitStateAllMethodsCurrentCoroutine(state: State) {
+        loginSharedFlow.emit(state)
+        _loginStateFlow.value = state
+        loginChannel.send(state)
+    }
+
+    // Emit state on all methods in new coroutine.
+    // Note: When this is used, the `Flow` "delay" above is not interrupted.
+    // All collectors will receive the state.
+    // ** RECOMMENDED METHOD **
+    private fun emitStateAllMethodsNewCoroutine(state: State) {
+        viewModelScope.launch {
+            loginSharedFlow.emit(state)
+            _loginStateFlow.value = state
+            loginChannel.send(state)
+        }
+    }
+
+    // Emit state on all methods without launching new coroutine
+    // Note: because this is not launched in a new coroutine,
+    //   the `Flow` and Channel do not always receive the exception from exceptionHandler.
+    private fun emitStateAllMethodsWithoutCoroutine(state: State) {
+        loginSharedFlow.tryEmit(state)
+        _loginStateFlow.value = state
+        loginChannel.trySend(state)
+    }
+
+    // LOGIN //////////////////////////////////////////////////////////////////
+
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun login() {
 
-        // Only handles exceptions in the child coroutine(s). And NOT CancelledException.
+        // Only handles exceptions in the child coroutine(s). And *NOT* CancelledException.
         val exceptionHandler = CoroutineExceptionHandler { _, exception ->
             println("Login exception handler Caught $exception  - ${Thread.currentThread().name}")
 
@@ -53,7 +90,9 @@ class MainViewModel() : ViewModel() {
                 isError = true,
                 errorMessage = exception.message ?: "Unknown Error"
             )
-            loginSharedFlow.tryEmit(loginState)
+//            emitStateAllMethodsWithoutCoroutine(loginState) // Note: Collectors do not always receive the exception emission.
+            emitStateAllMethodsNewCoroutine(loginState) // Collectors will always receive the exception emission.
+
             //exception.printStackTrace()
         }
 
@@ -63,7 +102,7 @@ class MainViewModel() : ViewModel() {
 
             println("Login called - ${Thread.currentThread().name}")
             loginState = loginState.copy(statusMessage = "Login called", isLoading = true)
-            loginSharedFlow.emit(loginState)
+            emitStateAllMethodsCurrentCoroutine(loginState)
             yield() // allows the `emit` time to update the UI
 
             // • Try different child coroutine call scenarios (launch, async, withContext) for Child Coroutine
@@ -79,20 +118,20 @@ class MainViewModel() : ViewModel() {
 
                 // • Try different loginJob repository call scenarios.
                 //   1) exceptions are handled by the parent coroutine:
-                val isLoginSuccess = repositoryLoginThrowExceptionToParent()
+//                val isLoginSuccess = repositoryLoginThrowExceptionToParent()
 
                 //   2) exceptions are handled in the child function using try/catch:
-//                val isLoginSuccess = repositoryLoginWithTryCatch()
+                val isLoginSuccess = repositoryLoginWithTryCatch()
 
 
-                // • Throw exception after job is started:
+                // • Throw exception after loginJob is started:
 //                throw IOException("loginJob coroutine IOException") // repositoryLoginXXX will keep running to completion(!) and parent will catch the exception.
 //                throw CancellationException("loginJob coroutine CancellationException")  // repositoryLoginXXX will keep running to completion(!) then parent coroutine will be cancelled.
 
 
                 println("Login Job completed - ${Thread.currentThread().name}")
                 loginState = loginState.copy(statusMessage = "Login Job completed", isLoading = false, isLoggedIn = isLoginSuccess)
-                loginSharedFlow.emit(loginState)
+                emitStateAllMethodsCurrentCoroutine(loginState)
                 yield()
 
                 isLoginSuccess
@@ -100,10 +139,10 @@ class MainViewModel() : ViewModel() {
             yield()  // Allows the `loginJob` coroutine a chance to staIrt, especially if its cancelled right away with `loginJob.cancel()`
 
             // • Try different cancellation scenarios:
-//            delay(50)
+            delay(150)                      // Delay to allow the `loginJob` coroutine to start, and cancel it in middle of processing.
 //            loginJob.join()                 // suspends until loginJob completes
 //            loginJob.cancelAndJoin()        // cancels loginJob and suspends until loginJob completes
-//            loginJob.cancel()          // cancels loginJob but does not suspend
+            loginJob.cancel()          // cancels loginJob but does not suspend
 
             if(!loginJob.isCancelled) {
                 println("loginJob is not cancelled, awaiting `job` result...")
@@ -134,14 +173,20 @@ class MainViewModel() : ViewModel() {
                         ?.replaceBeforeLast(".", "")
                         ?: "Unknown Error"
                 )
-                loginSharedFlow.emit(loginState)
+//                loginSharedFlow.emit(loginState)
+//                _loginStateFlow.value = loginState
+//                loginChannel.send(loginState)
+                emitStateAllMethodsCurrentCoroutine(loginState)
                 yield()
             }
 
             // note: without `loginJob.join()` or `loginJob.await()` this is printed before the login job is finished!
             println("Login finished - ${Thread.currentThread().name}")
             loginState = loginState.copy(statusMessage = "Login finished", isLoading = false)
-            loginSharedFlow.emit(loginState)
+//            loginSharedFlow.emit(loginState)
+//            _loginStateFlow.value = loginState
+//            loginChannel.send(loginState)
+            emitStateAllMethodsCurrentCoroutine(loginState)
             yield()
         }
 
@@ -166,12 +211,12 @@ class MainViewModel() : ViewModel() {
     private suspend fun repositoryLoginThrowExceptionToParent(): Boolean {
         println("Login Repository called - ${Thread.currentThread().name}")
         loginState = loginState.copy(statusMessage = "RepositoryLogin called")
-        loginSharedFlow.emit(loginState)
+        emitStateAllMethodsCurrentCoroutine(loginState)
         delay(100)
 
         println("login running...")
         loginState = loginState.copy(statusMessage = "RepositoryLogin running...")
-        loginSharedFlow.emit(loginState)
+        emitStateAllMethodsCurrentCoroutine(loginState)
         delay(100)
 
         // • Try throwing different exceptions
@@ -182,7 +227,7 @@ class MainViewModel() : ViewModel() {
 
         println("RepositoryLogin completed - ${Thread.currentThread().name}")
         loginState = loginState.copy(statusMessage = "RepositoryLogin completed", isLoggedIn = isSuccessLogin)
-        loginSharedFlow.emit(loginState)
+        emitStateAllMethodsCurrentCoroutine(loginState)
         yield()
 
         return isSuccessLogin // isSuccess
@@ -198,23 +243,23 @@ class MainViewModel() : ViewModel() {
         return try {
             println("Login Repository called - ${Thread.currentThread().name}")
             loginState = loginState.copy(statusMessage = "RepositoryLogin called")
-            loginSharedFlow.emit(loginState)
+            emitStateAllMethodsCurrentCoroutine(loginState)
             delay(100)
 
             println("login running...")
             loginState = loginState.copy(statusMessage = "RepositoryLogin running...")
-            loginSharedFlow.emit(loginState)
+            emitStateAllMethodsCurrentCoroutine(loginState)
             delay(100)
 
             // • Try throwing different exceptions
 //                throw IOException("Login failed - IOException") // caught by try/catch. Parent coroutine continues.
 //                throw CancellationException("Login failed - cancelled")  // caught by try/catch. Parent coroutine continues.
 
-            isLoginSuccess = true
+            isLoginSuccess = true  // simulate a good username/pw login
 
             println("Login logged in - ${Thread.currentThread().name}")
-            loginState = loginState.copy(statusMessage = "RepositoryLogin Logged in", isLoggedIn = isLoginSuccess)
-            loginSharedFlow.emit(loginState)
+            loginState = loginState.copy(statusMessage = "RepositoryLogin completed", isLoggedIn = isLoginSuccess)
+            emitStateAllMethodsCurrentCoroutine(loginState)
             yield()
 
             isLoginSuccess // isSuccess
@@ -222,7 +267,7 @@ class MainViewModel() : ViewModel() {
         } catch(e: CancellationException) {  // Must be specifically caught! Otherwise, it just stops the parent coroutine.
             println("Login cancelled")
             loginState = loginState.copy(statusMessage = "RepositoryLogin cancelled", isLoggedIn = false)
-            loginSharedFlow.emit(loginState)
+            emitStateAllMethodsCurrentCoroutine(loginState)
             yield()
 
             //throw e  // rethrow exception to be handled by parent coroutine
@@ -230,7 +275,7 @@ class MainViewModel() : ViewModel() {
         } catch(e: Exception) {
             println("Login failed")
             loginState = loginState.copy(statusMessage = "RepositoryLogin failed", isLoggedIn = false)
-            loginSharedFlow.emit(loginState)
+            emitStateAllMethodsCurrentCoroutine(loginState)
             yield()
 
             false
