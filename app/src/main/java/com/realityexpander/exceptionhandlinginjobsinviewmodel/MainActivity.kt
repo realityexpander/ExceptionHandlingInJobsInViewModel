@@ -29,11 +29,12 @@ class MainActivity : ComponentActivity() {
             ExceptionHandlingInJobsInViewModelTheme {
 
                 val scaffoldState = rememberScaffoldState()
-                val infoMessage = viewModel.infoMessage.collectAsState()
+                val infoMessage by viewModel.infoMessage.collectAsState()
 
-                LaunchedEffect(infoMessage.value, scaffoldState.snackbarHostState) {
+                // Show infoMessage
+                LaunchedEffect(infoMessage, scaffoldState.snackbarHostState) {
                     val result = scaffoldState.snackbarHostState.showSnackbar(
-                        infoMessage.value ?: return@LaunchedEffect,
+                        infoMessage ?: return@LaunchedEffect,
                         duration = SnackbarDuration.Indefinite,
                         actionLabel = "OK"
                     )
