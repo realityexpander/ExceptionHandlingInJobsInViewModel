@@ -105,7 +105,7 @@ class MainViewModel() : ViewModel() {
                 println("loginJob result: ${loginJob.getCompleted()}")
             }
 
-            // Allows this `viewModelScope.launch` block to run to the end, in case of `loginJob.cancel()`
+            // This `yield()` allows this `viewModelScope.launch` block to run to the end, in case of `loginJob.cancel()`
             yield()
 
             println("login job: isCancelled=${loginJob.isCancelled}, " +
