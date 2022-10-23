@@ -146,10 +146,8 @@ class MainActivity : ComponentActivity() {
                                 LogView("Channel:", logChannel)
 
                             }
-
                         }
                     }
-
                 )
             }
         }
