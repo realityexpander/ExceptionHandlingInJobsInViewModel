@@ -20,15 +20,15 @@ data class State(
 
 class MainViewModel() : ViewModel() {
 
-    // Compose State - - updates not sent when app is in background
+    // Compose State - - updates NOT sent when app is in background (HOT)
     var loginState by mutableStateOf(State(), neverEqualPolicy())
         private set
 
-    // Kotlin Coroutines SharedFlow - updates not sent when app is in background
+    // Kotlin Coroutines SharedFlow - updates NOT sent when app is in background (HOT)
     var loginSharedFlow = MutableSharedFlow<State>(replay = 1)
         private set
 
-    // Kotlin Coroutines StateFlow - updates not sent when app is in background
+    // Kotlin Coroutines StateFlow - updates NOT sent when app is in background (HOT)
     private var _loginStateFlow = MutableStateFlow<State>(State())
     var loginStateFlow: StateFlow<State> = _loginStateFlow.asStateFlow()
 
@@ -36,14 +36,10 @@ class MainViewModel() : ViewModel() {
     val loginFlow = flow {
         loginSharedFlow.collect() {
             emit(it)
-
-            // Uncomment to test when app in background the difference between `Compose State`/`SharedFlow` and `Flow`/`Channel`
-            // Also uncomment to see behavior difference with Channel and Flow for interrupted emissions.
-//            delay(1500)
         }
     }
 
-    // Kotlin Channel - updates are sent when app is in background
+    // Kotlin Channel - updates ARE sent when app is in background
     val loginChannel = Channel<State>()
 
     private val _infoMessage = MutableStateFlow<String?>(null)
