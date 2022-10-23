@@ -111,7 +111,7 @@ class MainViewModel() : ViewModel() {
         viewModelScope.launch(exceptionHandler) {
 //        viewModelScope.launch() {
 
-            var isLoginSuccess = false
+            var isLoginSuccess = false // can be set in the child coroutine `.join()` or received from the child coroutine `.await()`
 
             println("Login called - ${Thread.currentThread().name}")
             loginState = loginState.copy(statusMessage = "Login called", isLoading = true)
@@ -156,8 +156,9 @@ class MainViewModel() : ViewModel() {
 //            delay(150)                      // Delay to allow the `loginJob` coroutine to start, and cancel it in middle of processing.
 //            loginJob.cancelAndJoin()        // cancels loginJob and suspends until loginJob completes
 //            loginJob.cancel()          // cancels loginJob but does not suspend
+//            isLoginSuccess = loginJob.await()          // awaits for the results of loginJob
 
-            // Without await() or join(), the loginJob will run to completion, and the parent coroutine won't wait for its result.
+            // • Without await() or join(), the loginJob will run to completion, and the parent coroutine won't wait for its result.
             if(!loginJob.isCancelled) {
                 println("loginJob is not cancelled, awaiting `job` result...")
                 loginJob.await()
