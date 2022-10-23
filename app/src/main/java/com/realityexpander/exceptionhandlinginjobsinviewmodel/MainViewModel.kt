@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import java.io.IOException
 
@@ -19,20 +20,25 @@ data class State(
 )
 class MainViewModel() : ViewModel() {
 
-    // Compose State
+    // Compose State - - updates not sent when app is in background
     var loginState by mutableStateOf(State(), neverEqualPolicy())
         private set
 
-    // Kotlin Coroutine
+    // Kotlin Coroutines Shared Flow - updates not sent when app is in background
     var loginSharedFlow = MutableSharedFlow<State>(replay = 1)
         private set
 
-    // Kotlin Coroutine Flow
+    // Kotlin Coroutine Flow - updates are sent when app is in background
     val loginFlow = flow {
         loginSharedFlow.collect() {
+            //delay(2500) // Uncomment to test when app in background the difference between `Compose State`/`SharedFlow` and `Flow`/`Channel`
             emit(it)
+            loginChannel.send(it)
         }
     }
+
+    // Kotlin Channel - updates are sent when app is in background
+    val loginChannel = Channel<State>()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun login() {

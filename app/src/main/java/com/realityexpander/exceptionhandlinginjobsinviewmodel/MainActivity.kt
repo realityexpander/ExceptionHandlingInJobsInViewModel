@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
@@ -14,8 +16,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.view.ScrollingView
 import com.realityexpander.exceptionhandlinginjobsinviewmodel.ui.theme.ExceptionHandlingInJobsInViewModelTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,6 +32,7 @@ class MainActivity : ComponentActivity() {
                 val logMutableState = remember { mutableStateListOf<String>() }
                 val logSharedFlow = remember { mutableStateListOf<String>() }
                 val logFlow = remember { mutableStateListOf<String>() }
+                val logChannel = remember { mutableStateListOf<String>() }
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -36,6 +42,7 @@ class MainActivity : ComponentActivity() {
                     val resultSharedFlow = viewModel.loginSharedFlow.collectAsState(State())
 
                     LaunchedEffect(true) {
+//                        delay(2000) // Uncomment to allow app to start and user put app in background to see difference in behavior
                         viewModel.login()
                     }
 
@@ -65,17 +72,34 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    Column {
+                    // Channel
+                    LaunchedEffect(true) {
+                        viewModel.loginChannel.receiveAsFlow().collectLatest {
+                            logChannel += it.statusMessage +": "+
+                                    it.errorMessage +
+                                    ", logIn=${it.isLoggedIn}" +
+                                    ", err=${it.isError}"
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
                         ResultView(resultState.toString())
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        LogView("Compose State:",  logMutableState)
+                        LogView("Compose State:", logMutableState)
                         Spacer(modifier = Modifier.height(16.dp))
 
                         LogView("SharedFlow:", logSharedFlow)
                         Spacer(modifier = Modifier.height(16.dp))
 
                         LogView("Flow:", logFlow)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        LogView("Channel:", logChannel)
                     }
 
                 }
