@@ -75,7 +75,7 @@ class MainActivity : ComponentActivity() {
                             val resultStateFlow = viewModel.loginStateFlow.collectAsState()
 
                             LaunchedEffect(true) {
-                                delay(2000) // Uncomment to allow app to start and user put app in background to see difference in behavior
+                                //delay(2000) // Uncomment to allow app to start and user can put app in background to see difference in behavior
                                 viewModel.login()
                             }
 
