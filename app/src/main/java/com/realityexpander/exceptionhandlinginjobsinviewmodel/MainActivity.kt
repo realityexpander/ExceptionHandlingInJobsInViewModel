@@ -164,9 +164,15 @@ fun ResultView(value: String) {
 @Composable
 fun LogView(title: String, log: List<String>) {
     Column {
-        Text(text = title)
+        Text(
+            text = title,
+            style = MaterialTheme.typography.h6
+        )
         log.forEach {
-            Text(text = "• $it")
+            Text(
+                text = "• $it",
+                style = MaterialTheme.typography.subtitle1
+            )
         }
     }
 }
